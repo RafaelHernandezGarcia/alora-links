@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alora - Opening Video...</title>
+    <title>Alora - Watch Video</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -20,99 +20,152 @@
         .container { max-width: 400px; }
         .logo { font-size: 32px; font-weight: 700; letter-spacing: 2px; margin-bottom: 8px; }
         .gold { color: #c5a065; }
-        .spinner {
-            width: 40px; height: 40px;
-            border: 3px solid rgba(197,160,101,0.3);
-            border-top-color: #c5a065;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 24px auto;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .status { font-size: 16px; margin-bottom: 24px; color: rgba(255,255,255,0.8); }
-        .fallback {
+        .status { font-size: 15px; margin: 16px 0; color: rgba(255,255,255,0.8); line-height: 1.5; }
+        .btn {
             display: inline-block;
-            background: #c5a065;
-            color: #0e3c2e;
             text-decoration: none;
             font-weight: 600;
             padding: 14px 32px;
             border-radius: 8px;
             font-size: 16px;
-            transition: opacity 0.2s;
+            margin: 8px;
+            cursor: pointer;
+            border: none;
         }
-        .fallback:hover { opacity: 0.85; }
+        .btn-gold { background: #c5a065; color: #0e3c2e; }
+        .btn-outline { background: transparent; color: #c5a065; border: 2px solid #c5a065; }
+        .btn:hover { opacity: 0.85; }
+        .buttons { margin-top: 20px; }
         .hint {
-            margin-top: 16px;
+            margin-top: 20px;
             font-size: 12px;
-            color: rgba(255,255,255,0.5);
-            line-height: 1.5;
+            color: rgba(255,255,255,0.45);
+            line-height: 1.6;
+        }
+        .copy-msg {
+            display: none;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #c5a065;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">ALORA</div>
-        <div class="gold" style="font-size:13px; margin-bottom: 4px;">&#9654;</div>
-        <div class="spinner" id="spinner"></div>
-        <div class="status" id="status">Opening YouTube app...</div>
-        <a class="fallback" id="fallback" href="#" style="display:none;">Watch on YouTube</a>
-        <div class="hint" id="hint" style="display:none;">
-            If the video didn't open automatically,<br>tap the button above.
+        <div class="gold" style="font-size: 13px;">&#9654; Demo Video</div>
+
+        <div class="status" id="status">
+            Tap a button below to watch our demo video.
+        </div>
+
+        <div class="buttons">
+            <a class="btn btn-gold" id="btn-app" href="#">
+                Open in YouTube App
+            </a>
+            <br>
+            <a class="btn btn-outline" id="btn-browser" href="#" target="_blank" rel="noopener">
+                Open in Browser
+            </a>
+            <br>
+            <button class="btn btn-outline" id="btn-copy" style="margin-top: 4px; font-size: 14px;">
+                Copy Link
+            </button>
+        </div>
+
+        <div class="copy-msg" id="copy-msg">Link copied! Paste it in Chrome or Safari.</div>
+
+        <div class="hint">
+            "Open in YouTube App" works if YouTube is installed.<br>
+            "Open in Browser" opens Chrome/Safari outside this viewer.<br>
+            "Copy Link" lets you paste the URL yourself.
         </div>
     </div>
 
     <script>
         (function() {
-            // Extract video ID from ?v= parameter
             var params = new URLSearchParams(window.location.search);
             var videoId = params.get('v');
 
             if (!videoId) {
                 document.getElementById('status').textContent = 'No video specified.';
-                document.getElementById('spinner').style.display = 'none';
                 return;
             }
 
             var youtubeWeb = 'https://www.youtube.com/watch?v=' + videoId;
-            var youtubeApp = 'youtube://www.youtube.com/watch?v=' + videoId;
+            var isAndroid = /android/i.test(navigator.userAgent);
 
-            // Set fallback link
-            var fallbackBtn = document.getElementById('fallback');
-            fallbackBtn.href = youtubeWeb;
+            // === Button 1: Open in YouTube App ===
+            var btnApp = document.getElementById('btn-app');
 
-            // Track if we've left the page (app opened successfully)
-            var appOpened = false;
+            if (isAndroid) {
+                // Android Intent URL — the official way to open a specific app on Android
+                // If YouTube app is installed, it opens directly. If not, falls back to web.
+                btnApp.href = 'intent://www.youtube.com/watch?v=' + videoId
+                    + '#Intent;scheme=https;package=com.google.android.youtube;end';
+            } else {
+                // iOS: try youtube:// scheme
+                btnApp.href = 'youtube://www.youtube.com/watch?v=' + videoId;
+            }
 
-            // Listen for page becoming hidden (means app opened)
-            document.addEventListener('visibilitychange', function() {
-                if (document.hidden) { appOpened = true; }
-            });
-
-            window.addEventListener('blur', function() {
-                appOpened = true;
-            });
-
-            // Attempt 1: Try the youtube:// URI scheme to force app open
-            // This breaks out of in-app browsers (Acrobat Reader, etc.)
-            window.location.href = youtubeApp;
-
-            // After 2.5 seconds, if app didn't open, show fallback
-            setTimeout(function() {
-                if (!appOpened) {
-                    document.getElementById('spinner').style.display = 'none';
-                    document.getElementById('status').textContent = 'YouTube app not detected.';
-                    fallbackBtn.style.display = 'inline-block';
-                    document.getElementById('hint').style.display = 'block';
-
-                    // Auto-redirect to web version after showing button briefly
-                    setTimeout(function() {
-                        if (!appOpened) {
-                            window.location.href = youtubeWeb;
-                        }
-                    }, 3000);
+            // === Button 2: Open in Browser ===
+            // Using window.open to try to escape the in-app WebView
+            var btnBrowser = document.getElementById('btn-browser');
+            btnBrowser.href = youtubeWeb;
+            btnBrowser.addEventListener('click', function(e) {
+                e.preventDefault();
+                // window.open with _blank — on Android WebViews, this often
+                // opens the system browser instead of staying in the WebView
+                var w = window.open(youtubeWeb, '_blank');
+                // If window.open was blocked or didn't work, fall back to location
+                if (!w) {
+                    window.location.href = youtubeWeb;
                 }
-            }, 2500);
+            });
+
+            // === Button 3: Copy Link ===
+            var btnCopy = document.getElementById('btn-copy');
+            btnCopy.addEventListener('click', function() {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(youtubeWeb).then(function() {
+                        document.getElementById('copy-msg').style.display = 'block';
+                    }).catch(function() {
+                        fallbackCopy();
+                    });
+                } else {
+                    fallbackCopy();
+                }
+            });
+
+            function fallbackCopy() {
+                var ta = document.createElement('textarea');
+                ta.value = youtubeWeb;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                try {
+                    document.execCommand('copy');
+                    document.getElementById('copy-msg').style.display = 'block';
+                } catch(e) {
+                    prompt('Copy this link:', youtubeWeb);
+                }
+                document.body.removeChild(ta);
+            }
+
+            // Auto-attempt: try the app link immediately on page load
+            // Use a hidden iframe so it doesn't replace the page if it fails
+            try {
+                var iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                if (isAndroid) {
+                    iframe.src = 'intent://www.youtube.com/watch?v=' + videoId
+                        + '#Intent;scheme=https;package=com.google.android.youtube;end';
+                } else {
+                    iframe.src = 'youtube://www.youtube.com/watch?v=' + videoId;
+                }
+                document.body.appendChild(iframe);
+            } catch(e) {}
         })();
     </script>
 </body>
